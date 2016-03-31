@@ -224,16 +224,64 @@ class Hypernum:
         # Format self AS IF self.pt were pt.
         if pt < 1:
             if self.expon < 16:
-                return "{0:g}".format(self.mantissa * pow(10, self.expon))
-            return "{0:g} x 10^{1:d}".format(self.mantissa, self.expon)
-        if pt == 1 and self.expon < 11:
+                rv= "{0:g}".format(self.mantissa * pow(10, self.expon))
+            else:
+                rv="{0:g} x 10^{1:d}".format(self.mantissa, self.expon)
+        elif pt == 1 and self.expon < 11:
             m=abs(self.mantissa) * pow(10, self.expon)
             d=int(math.floor(m))
             m=pow(10, m - d)
-            return "{0:s}{1:g} x 10^{2:d}".format(s, m, d)
-        if pt < 6:
-            return "{0:s}10^({1:s})".format(s,self.__str__(pt-1))
-        return "{0:s}{1:d} PT {2:f}e{3:d}".format(s, pt, abs(self.mantissa), self.expon)
+            rv= "{0:s}{1:g} x 10^{2:d}".format(s, m, d)
+        elif pt < 6:
+            rv= "{0:s}10^({1:s})".format(s,self.__str__(pt-1))
+        else:
+            rv="{0:s}{1:d} PT {2:f}e{3:d}".format(s, pt, abs(self.mantissa), self.expon)
+        return rv
+
+    def _repr_latex_(self, pt=None):
+        "Latex representation, for IPython."
+        def scinote(mant, ex):
+            # What looks best?  There's something nice about the
+            # subscripted 10, and it would let us raise the
+            # latex_pt_limit
+
+            # return "{0:g}{{\\rm e}}{{{1:d}}}".format(mant,ex)
+            # return "{0:g}e{{{1:d}}}".format(mant,ex)
+            # return "{0:g}_{{10}}{1:d}".format(mant,ex)
+            return "{0:g}\\times 10^{{{1:d}}}".format(mant,ex)
+
+        if self.isnan():
+            return "$\\rm NaN$"
+        if self.ispinf():
+            return '$\infty$'
+        if self.isminf():
+            return '$-\infty$'
+        s='-' if self.mantissa<0 else ''
+        if pt is None:
+            pt=self.pt
+            outermost=True
+        else:
+            s=''
+            outermost=False
+        if pt<1:
+            if self.expon<6:
+                rv= "{0:g}".format(self.mantissa * pow(10, self.expon))
+            else:
+                rv= scinote(self.mantissa, self.expon)
+        elif pt == 1 and self.expon < 11:
+            m=abs(self.mantissa) * pow(10, self.expon)
+            d=int(math.floor(m))
+            m=pow(10, m - d)
+            rv=scinote(self.sign()*m, d)
+        elif pt < self.latex_pt_limit:
+            rv="{0:s}10^{{{1:s}}}".format(s,self._repr_latex_(pt-1))
+        else:
+            rv= "{0:s}{1:d} {{\\rm \\ PT\\ }} ".format(s, pt) + scinote(abs(self.mantissa), self.expon)
+        if outermost:
+            return "$"+rv+"$"
+        else:
+            return rv
+
 
     def sign(self):
         "Sign of mantissa.  Zero is considered positive."
