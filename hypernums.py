@@ -32,6 +32,10 @@ class Hypernum:
     scale=14
     logten=math.log(10)
     latex_pt_limit=3
+    latex_exp_limit=0
+    str_pt_limit=6
+    str_exp_limit=16
+    str_p1_exp_limit=11
 
     def __init__(self, arg):
         """
@@ -223,16 +227,16 @@ class Hypernum:
             s=''                # No negatives in recursive call.
         # Format self AS IF self.pt were pt.
         if pt < 1:
-            if self.expon < 16:
-                rv= "{0:g}".format(self.mantissa * pow(10, self.expon))
+            if self.expon < self.str_exp_limit:
+                rv= "{0:.0f}".format(self.mantissa * pow(10, self.expon))
             else:
                 rv="{0:g} x 10^{1:d}".format(self.mantissa, self.expon)
-        elif pt == 1 and self.expon < 11:
+        elif pt == 1 and self.expon < self.str_p1_exp_limit:
             m=abs(self.mantissa) * pow(10, self.expon)
             d=int(math.floor(m))
             m=pow(10, m - d)
             rv= "{0:s}{1:g} x 10^{2:d}".format(s, m, d)
-        elif pt < 6:
+        elif pt < self.str_pt_limit:
             rv= "{0:s}10^({1:s})".format(s,self.__str__(pt-1))
         else:
             rv="{0:s}{1:d} PT {2:f}e{3:d}".format(s, pt, abs(self.mantissa), self.expon)
@@ -264,11 +268,11 @@ class Hypernum:
             s=''
             outermost=False
         if pt<1:
-            if self.expon<6:
-                rv= "{0:g}".format(self.mantissa * pow(10, self.expon))
+            if self.expon<self.str_exp_limit:
+                rv= "{0:.0f}".format(self.mantissa * pow(10, self.expon))
             else:
                 rv= scinote(self.mantissa, self.expon)
-        elif pt == 1 and self.expon < 11:
+        elif pt == 1 and self.expon < self.str_p1_exp_limit:
             m=abs(self.mantissa) * pow(10, self.expon)
             d=int(math.floor(m))
             m=pow(10, m - d)
@@ -520,27 +524,54 @@ class Hypernum:
 
     def __add__(self, other):
         "x.__add__(y) <==> x+y"
+        if self.sign() != other.sign():
+            return self.__sub__(-other)
         x, y=self._inorder(self,other)
+        sign=x.sign()
         if x.ispinf():
             return self.Inf
         if x.isnan():
             return self.NaN
+        if x.isminf():
+            return self.mInf
         if x.pt==0:
             return self.__class__(x.float()+y.float())
-        elif x.pt==1:           # ALL WRONG!!!!
+        elif x.pt==1:
             if y.pt==0:
-                val=self._addlog(x.mantissa, y.sign()*math.log10(abs(y.mantissa)))
+                val=sign*self._addlog(abs(x.float()), math.log10(abs(y.float())))
             else:
-                val=self._addlog(x.mantissa, y.mantissa)
-            # return self.__class__({'pt':1, 'exp':0, 'mantissa':val})
-            return self.__class__({'pt':1, 'exp':math.floor(val),
-                                   'mantissa':pow(10,(val-math.floor(val)))})
+                val=sign*self._addlog(abs(x.float()), abs(y.float()))
+            return self.__class__({'pt':1, 'exp':0, 'mantissa':val})
         else:
             return self.__class__(x)
 
     def __sub__(self, other):
-        "x.__sub__(y) <==> x-y"
-        return self.__add__(-other)
+        "x.__add__(y) <==> x+y"
+        if self.sign() != other.sign():
+            return self.__add__(-other)
+        x, y=self._inorder(self,other)
+        if self is x:
+            sign = self.sign()
+        else:
+            sign = -self.sign();
+        if x.ispinf():
+            return self.Inf
+        if x.isnan():
+            return self.NaN
+        if x.isminf():
+            return self.mInf
+        if x.pt==0:
+            return self.__class__(self.float()-other.float())
+        if x==y:
+            return self.Zero    # avoid exceptions farther along.
+        elif x.pt==1:
+            if y.pt==0:
+                val=sign*self._sublog(abs(x.float()), math.log10(abs(y.float())))
+            else:
+                val=sign*self._sublog(abs(x.float()), abs(y.float()))
+            return self.__class__({'pt':1, 'exp':0, 'mantissa':val})
+        else:
+            return self.__class__(x)
 
     def __rsub__(self, other):
         "x.__rsub__(y) <==> y-x"
