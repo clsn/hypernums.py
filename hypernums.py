@@ -59,6 +59,14 @@ class Hypernum:
         self.pt=0
         self.mantissa=0
         self.expon=0
+        try:
+            # For overflow errors from huge long ints.
+            zz=float(arg)
+        except OverflowError:
+            arg=str(arg)
+        except TypeError:
+            # If it's a dict, etc.
+            pass
         if isinstance(arg, dict):
             if 'pt' in arg and 'mantissa' in arg and 'exp' in arg:
                 self.pt=arg['pt']
@@ -228,7 +236,7 @@ class Hypernum:
         # Format self AS IF self.pt were pt.
         if pt < 1:
             if self.expon < self.str_exp_limit:
-                rv= "{0:.0f}".format(self.mantissa * pow(10, self.expon))
+                rv= "{0:.1f}".format(self.mantissa * pow(10, self.expon))
             else:
                 rv="{0:g} x 10^{1:d}".format(self.mantissa, self.expon)
         elif pt == 1 and self.expon < self.str_p1_exp_limit:
@@ -269,7 +277,7 @@ class Hypernum:
             outermost=False
         if pt<1:
             if self.expon<self.str_exp_limit:
-                rv= "{0:.0f}".format(self.mantissa * pow(10, self.expon))
+                rv= "{0:.1f}".format(self.mantissa * pow(10, self.expon))
             else:
                 rv= scinote(self.mantissa, self.expon)
         elif pt == 1 and self.expon < self.str_p1_exp_limit:
@@ -524,7 +532,7 @@ class Hypernum:
 
     def __add__(self, other):
         "x.__add__(y) <==> x+y"
-        if self.sign() != other.sign():
+        if (self>0) != (other>0):
             return self.__sub__(-other)
         x, y=self._inorder(self,other)
         sign=x.sign()
@@ -547,13 +555,15 @@ class Hypernum:
 
     def __sub__(self, other):
         "x.__add__(y) <==> x+y"
-        if self.sign() != other.sign():
+        if (self>0) != (other>0):
             return self.__add__(-other)
         x, y=self._inorder(self,other)
         if self is x:
             sign = self.sign()
+            slf,oth = x,y
         else:
             sign = -self.sign();
+            slf,oth = y,x
         if x.ispinf():
             return self.Inf
         if x.isnan():
@@ -561,7 +571,7 @@ class Hypernum:
         if x.isminf():
             return self.mInf
         if x.pt==0:
-            return self.__class__(self.float()-other.float())
+            return self.__class__(slf.float()-oth.float())
         if x==y:
             return self.Zero    # avoid exceptions farther along.
         elif x.pt==1:
