@@ -37,7 +37,7 @@ class Hypernum:
     str_exp_limit=16
     str_p1_exp_limit=11
 
-    def __init__(self, arg):
+    def __init__(self, arg=None, **kwargs):
         """
         Hypernum(<number or string>)
 
@@ -67,6 +67,8 @@ class Hypernum:
         except (TypeError, AttributeError):
             # If it's a dict, etc.
             pass
+        if arg is None:         # arg takes precedence, though.
+            arg=kwargs
         if isinstance(arg, dict):
             if 'pt' in arg and 'mantissa' in arg and 'exp' in arg:
                 self.pt=arg['pt']
@@ -190,8 +192,10 @@ class Hypernum:
         return self.mantissa == 0
 
     def _struct(self):
-        "Return string spelling out inner structure of hypernum"
-        return "{{pt: {x.pt}, mantissa: {x.mantissa}, expon: {x.expon}}}".format(x=self)
+        """Return string spelling out inner structure of hypernum
+        This string may be eval()d to produce a dict suitable for feeding
+        back into the contructor, if for some reason you want that."""
+        return "{{'pt': {x.pt}, 'mantissa': {x.mantissa}, 'exp': {x.expon}}}".format(x=self)
 
     # Maybe allow for Unicode with 1.2345⏨15, and/or 6.02×10²³?  One level
     # only though.
@@ -252,6 +256,8 @@ class Hypernum:
 
     @staticmethod
     def _latex_scinote(mant, ex):
+        """Format arguments (mantissa, exponent) into scientific notation in
+        LaTeX, for LaTeX rendering."""
         # What looks best?  There's something nice about the
         # subscripted 10, and it would let us raise the
         # latex_pt_limit
@@ -556,7 +562,7 @@ class Hypernum:
             return self.__class__(x)
 
     def __sub__(self, other):
-        "x.__add__(y) <==> x+y"
+        "x.__sub__(y) <==> x-y"
         if (self>0) != (other>0):
             return self.__add__(-other)
         x, y=self._inorder(self,other)
@@ -696,10 +702,11 @@ class Hypernum:
             rv.mantissa=abs(rv.mantissa)
             return rv
 
-
     def iterpow(self, power):
         "Exponentiation by iterated multiplication"
         # Iterative power: just repeated multiplication
+        if power == power-1:
+            raise ValueError("Power too big")
         rv=self.One
         while power>0:
             rv = rv * self
@@ -709,9 +716,14 @@ class Hypernum:
     def itertetra(self, power):
         "Tetration by iterated exponentiation"
         # Iterative tetration.  Repeated exponentiation.
+        # At least catch truly infinite loops;
+        # you can still screw up badly if you want though.
+        if power == power-1:
+            raise ValueError("Tetration too big")
+        power=int(power)          # avoid rounding problems.
         rv=self.One
         while power>0:
-            rv = self ** rv     # Order matters!
+            rv = self ** rv  # Order matters!
             power -= 1
         return rv
 
@@ -874,6 +886,44 @@ class Hypernum:
                 return self.One * rvsign
             else:
                 return self.__class__(self)
+
+
+
+    # More magic functions!
+
+    def __float__(self):
+        return self.float()
+
+    def __int__(self):
+        return int(self.float())
+
+    __long__ = __int__
+
+    __trunc__ = __int__
+
+    # Let's do some notation abuse!  There are all these magic
+    # functions hardly anyone ever uses...
+
+    __xor__ = itertetra         # Abuse notation! Use ^ for tetration!
+
+    def __rxor__(self, other):
+        if not isinstance(other, self.__class__):
+            other=self.__class__(other)
+        return other.itertetra(self)
+
+    def __irshift__(self, other):
+        "x >>= k: increment the power-tower of x by k"
+        other = int(other)
+        if self.pt + other >= 0:
+            self.pt += other
+            self.normalize()
+        else:
+            raise ValueError("PT would go negative")
+        return self
+
+    def __ilshift__(self, other):
+        "x <<= k: decrement the power-tower of x by k"
+        return self.__irshift__(-other)
 
 
 Hypernum.NaN=Hypernum('NaN')
