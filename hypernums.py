@@ -64,7 +64,7 @@ class Hypernum:
             zz=float(arg)
         except OverflowError:
             arg=str(arg)
-        except (TypeError, AttributeError):
+        except (TypeError, AttributeError, ValueError):
             # If it's a dict, etc.
             pass
         if arg is None:         # arg takes precedence, though.
