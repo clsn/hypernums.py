@@ -5,6 +5,7 @@ from __future__ import division
 import math
 import re
 from sys import version_info
+from numbers import Number
 
 if version_info.major < 3:
     PY3 = False
@@ -197,6 +198,15 @@ class Hypernum:
         back into the contructor, if for some reason you want that."""
         return "{{'pt': {x.pt}, 'mantissa': {x.mantissa}, 'exp': {x.expon}}}".format(x=self)
 
+    def _dict(self):
+        # Probably should have made this instead of/before _struct()
+        """Dictionary of structure.
+
+        Return a dictionary of this Hypernum's pt, mantissa, and expon.  Can
+        be used to construct/copy, if needed.
+        """
+        return {'pt': self.pt, 'mantissa': self.mantissa, 'exp': self.expon}
+
     # Maybe allow for Unicode with 1.2345⏨15, and/or 6.02×10²³?  One level
     # only though.
     def __repr__(self):
@@ -268,14 +278,14 @@ class Hypernum:
         return "{0:g}\\times 10^{{{1:d}}}".format(mant,ex)
 
     def _repr_latex_(self, pt=None):
-        "Latex representation, for IPython."
+        "LaTeX representation, for IPython."
 
         if self.isnan():
             return "$\\rm NaN$"
         if self.ispinf():
-            return '$\infty$'
+            return '$\\infty$'
         if self.isminf():
-            return '$-\infty$'
+            return '$-\\infty$'
         s='-' if self.mantissa<0 else ''
         if pt is None:
             pt=self.pt
@@ -924,6 +934,19 @@ class Hypernum:
     def __ilshift__(self, other):
         "x <<= k: decrement the power-tower of x by k"
         return self.__irshift__(-other)
+
+    def __round__(self):
+        return self
+    def __rtruediv__(self, other):
+        return self.__class__(other).__truediv__(self)
+    def __radd__(self, other):
+        return self.__class__(other).__add__(self)
+    __floordiv__=__truediv__
+    __rfloordiv__=__rtruediv__
+    __pos__=__floor__=__ceil__=__round__
+    def __mod__(self, other):
+        return self
+    __rmod__=__mod__
 
 
 Hypernum.NaN=Hypernum('NaN')
